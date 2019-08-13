@@ -14,7 +14,7 @@ export default class Main extends Component {
     valid: true,
   };
 
-  // Load locaStorage repositories data
+  // Load localStorage repositories data
   componentDidMount() {
     const repositories = localStorage.getItem('repositories');
 
@@ -23,7 +23,7 @@ export default class Main extends Component {
     }
   }
 
-  // Set locaStorage repositories data
+  // Set localStorage repositories data
   componentDidUpdate(_, prevState) {
     const { repositories } = this.state;
 
@@ -43,18 +43,31 @@ export default class Main extends Component {
 
     try {
       const { newRepo, repositories } = this.state;
+      const checkRepoExist = repositories.find(
+        repo => repo.name.toLowerCase() === newRepo.toLowerCase()
+      );
+
+      // Do not allow loading the same repository
+      if (checkRepoExist) {
+        throw new Error('Repositório duplicado');
+      }
+
+      // Try getting the repository data
       const response = await api.get(`/repos/${newRepo}`);
 
+      // Retrieve specific data from response
       const data = {
         name: response.data.full_name,
       };
 
+      // Adds the new repository to the localStorage
       this.setState({
         repositories: [...repositories, data],
       });
     } catch (error) {
       this.setState({ valid: false });
     } finally {
+      // Clear the form
       this.setState({
         newRepo: '',
         loading: false,
