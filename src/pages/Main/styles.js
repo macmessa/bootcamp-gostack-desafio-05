@@ -10,6 +10,11 @@ export const Form = styled.form`
     padding: 10px 15px;
     border-radius: 4px;
     font-size: 16px;
+    ${props =>
+      !props.valid &&
+      css`
+        border-color: #f00;
+      `}
   }
 `;
 

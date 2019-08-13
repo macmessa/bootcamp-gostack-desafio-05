@@ -11,6 +11,7 @@ export default class Main extends Component {
     newRepo: '',
     repositories: [],
     loading: false,
+    valid: true,
   };
 
   // Load locaStorage repositories data
@@ -32,7 +33,7 @@ export default class Main extends Component {
   }
 
   handleInputChange = e => {
-    this.setState({ newRepo: e.target.value });
+    this.setState({ newRepo: e.target.value, valid: true });
   };
 
   handleSubmit = async e => {
@@ -40,22 +41,30 @@ export default class Main extends Component {
 
     this.setState({ loading: true });
 
-    const { newRepo, repositories } = this.state;
-    const response = await api.get(`/repos/${newRepo}`);
+    try {
+      const { newRepo, repositories } = this.state;
+      const response = await api.get(`/repos/${newRepo}`);
 
-    const data = {
-      name: response.data.full_name,
-    };
+      const data = {
+        name: response.data.full_name,
+      };
 
-    this.setState({
-      newRepo: '',
-      repositories: [...repositories, data],
-      loading: false,
-    });
+      this.setState({
+        repositories: [...repositories, data],
+      });
+    } catch (error) {
+      this.setState({ valid: false });
+    } finally {
+      this.setState({
+        newRepo: '',
+        loading: false,
+      });
+    }
   };
 
   render() {
-    const { newRepo, loading, repositories } = this.state;
+    const { newRepo, loading, repositories, valid } = this.state;
+
     return (
       <Container>
         <h1>
@@ -63,7 +72,7 @@ export default class Main extends Component {
           Repositórios
         </h1>
 
-        <Form onSubmit={this.handleSubmit}>
+        <Form onSubmit={this.handleSubmit} valid={+valid}>
           <input
             type="text"
             placeholder="Adicionar repositório"
