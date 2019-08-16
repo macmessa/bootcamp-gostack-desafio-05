@@ -1,8 +1,16 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import parse from 'parse-link-header';
 
-import { Loading, Owner, IssueList, IssueLabel, IssueFilter } from './styles';
+import {
+  Loading,
+  Owner,
+  IssueList,
+  IssueLabel,
+  IssueFilter,
+  IssuePagination,
+} from './styles';
 import api from '../../services/api';
 import Container from '../../components/Container';
 
@@ -17,22 +25,26 @@ export default class Repository extends Component {
 
   state = {
     repoName: '',
+    navButtons: { prev: '<', next: '>' },
     repository: {},
     issues: [],
+    pageCount: 1,
+    lastPage: false,
     loading: true,
     filters: ['open', 'closed', 'all'],
     filterIndex: 0,
+    page: 1,
   };
 
   // Load repositories data
   async componentDidMount() {
-    const { filters, filterIndex } = this.state;
+    const { filters, filterIndex, page } = this.state;
     const { match } = this.props;
     const repoName = decodeURIComponent(match.params.repository);
 
     const [repository, issues] = await Promise.all([
       api.get(`/repos/${repoName}`),
-      api.get(`/repos/${repoName}/issues?page=1`, {
+      api.get(`/repos/${repoName}/issues?page=${page}`, {
         params: {
           state: filters[filterIndex],
           per_page: 5,
@@ -40,38 +52,68 @@ export default class Repository extends Component {
       }),
     ]);
 
+    // Get headers to check last page, if has next or previous
+    const issueHeader = parse(issues.headers.link);
+
     this.setState({
       repoName,
       repository: repository.data,
       issues: issues.data,
+      pageCount: issueHeader.last ? issueHeader.last.page : page,
+      lastPage: !issueHeader.last,
       loading: false,
     });
   }
 
   // Reload issues based on filter, pagination, ...
   getIssues = async () => {
-    const { repoName, filters, filterIndex } = this.state;
+    const { repoName, filters, filterIndex, page } = this.state;
 
-    const issues = await api.get(`/repos/${repoName}/issues?page=1`, {
+    const issues = await api.get(`/repos/${repoName}/issues?page=${page}`, {
       params: {
         state: filters[filterIndex],
         per_page: 5,
       },
     });
 
+    // Get headers to check last page, if has next or previous
+    const issueHeader = parse(issues.headers.link);
+
     this.setState({
       issues: issues.data,
+      pageCount: issueHeader.last ? issueHeader.last.page : page,
+      lastPage: !issueHeader.last,
       loading: false,
     });
   };
 
+  // Filter buttons action
   handleFilter = async e => {
-    await this.setState({ filterIndex: +e.target.value });
+    await this.setState({ filterIndex: +e.target.value, page: 1 });
+    this.getIssues();
+  };
+
+  // Navigation buttons action
+  handleNavigation = async e => {
+    const { navButtons, page } = this.state;
+    await this.setState({
+      page: e.target.textContent === navButtons.prev ? page - 1 : page + 1,
+    });
     this.getIssues();
   };
 
   render() {
-    const { repository, issues, loading, filters, filterIndex } = this.state;
+    const {
+      navButtons,
+      repository,
+      issues,
+      pageCount,
+      lastPage,
+      loading,
+      filters,
+      filterIndex,
+      page,
+    } = this.state;
 
     if (loading) {
       return <Loading>Carregando</Loading>;
@@ -125,6 +167,25 @@ export default class Repository extends Component {
             </li>
           ))}
         </IssueList>
+        <IssuePagination>
+          <button
+            type="button"
+            disabled={page < 2}
+            onClick={this.handleNavigation}
+          >
+            {navButtons.prev}
+          </button>
+          <span>
+            Página {page} de {pageCount}
+          </span>
+          <button
+            type="button"
+            disabled={lastPage}
+            onClick={this.handleNavigation}
+          >
+            {navButtons.next}
+          </button>
+        </IssuePagination>
       </Container>
     );
   }
